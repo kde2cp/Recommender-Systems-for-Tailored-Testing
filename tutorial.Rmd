@@ -2,24 +2,64 @@
 title: "Recommender Systems for Tailored Testing (R Tutorial)"
 author: "Kelly D. Edwards, Ph.D."
 output:
+  pdf_document:
+    toc: true
+    toc_depth: '3'
   html_document:
     toc: true
     toc_depth: 3
     number_sections: true
     df_print: paged
-  pdf_document:
-    toc: true
-    toc_depth: '3'
 ---
 
 > **Purpose.** This tutorial shows how to use collaborative filtering with **matrix factorization (Funk SVD)** to predict item *relevance ratings* in a longitudinal assessment context.\
 > **Data.** We use **simulated** participant × item ratings (1-4 scale). No real or operational data are used.
 
+
+## Introduction
+
+Many medical boards are moving away from a single, high-stakes recertification exam and toward longitudinal assessments. Instead of one big test every 10 years, these programs deliver shorter sets of questions more frequently, often online. The goal is to reduce burden and better integrate assessment with day-to-day learning.
+
+One ongoing challenge, however, is relevance. Not every question feels meaningful to every physician. For example, a community physician might encounter a question about a rare inpatient procedure that doesn't reflect their daily practice, even though the topic is clinically important overall.
+
+Research in the learning sciences shows that when questions feel irrelevant:
+
+-   Engagement tends to drop
+
+-   Motivation to learn decreases
+
+-   The value of certification itself can be questioned
+
+**A Potential Solution: Recommender Systems**
+
+One way to address this challenge is through recommender systems, which are the same type of algorithms that suggest movies on Netflix or products on Amazon.
+
+Here's how they can be applied in an assessment setting:
+
+-   Physicians provide feedback (e.g., rating how relevant each question felt to their practice)
+
+-   A collaborative filtering algorithm looks for patterns across thousands of ratings
+
+-   The system predicts which future questions are most likely to feel relevant for each physician
+
+-   Items are then delivered based on these predictions, while still respecting content balance and fairness requirements
+
+This approach has the potential to make longitudinal assessments feel more personalized and engaging, while still preserving the rigor needed for certification.
+
+**R Tutorial**
+
+To give others a chance to see how this works, I've created a tutorial with example R code using the `recommenderlab` package. The tutorial walks through:
+
+-   Simulating item relevance ratings,
+
+-   Training a recommender system with Funk SVD, and
+
+-   Generating predictions for new participants.
+
 ## Setup
 
 ```{r knitr::opts_chunk$set, setup, message=FALSE, warning=FALSE}
 ```
-
 
 ```{r, message=FALSE, warning=FALSE, include=TRUE}
 set.seed(2025)
@@ -91,7 +131,7 @@ R
 
 ## Train/test split & evaluation scheme
 
-We’ll hold out a test set of 150 users. Within the training set, we’ll use an `evaluationScheme` to compute RMSE/MAE.
+We'll hold out a test set of 150 users. Within the training set, we'll use an `evaluationScheme` to compute RMSE/MAE.
 
 ```{r}
 idx_test  <- sample(1:n_users, size = 150)
@@ -108,7 +148,7 @@ Note: given = -1 uses all available ratings for training folds; we evaluate on t
 
 ## Fit Funk SVD with `recommenderlab`
 
-`recommenderlab` exposes SVD-based recommenders via `method = "SVD"` (Funk-style gradient descent). We’ll compare a simple baseline (POPULAR) against SVD.
+`recommenderlab` exposes SVD-based recommenders via `method = "SVD"` (Funk-style gradient descent). We'll compare a simple baseline (POPULAR) against SVD.
 
 ```{r}
 algos <- list(
@@ -158,7 +198,7 @@ pred_mat[1:6, 1:8]
 
 ## From predictions to tailored selection
 
-In an assessment setting, we don’t simply “send the top-N” items by prediction. We post-filter to respect constraints:
+In an assessment setting, we don't simply "send the top-N" items by prediction. We post-filter to respect constraints:
 
 -   Blueprint coverage: maintain required domain proportions
 
@@ -168,7 +208,7 @@ In an assessment setting, we don’t simply “send the top-N” items by predic
 
 -   Candidate eligibility: remove items already seen by the participant
 
-Here’s a toy post-filtering function that enforces a (simplified) domain mix.
+Here's a toy post-filtering function that enforces a (simplified) domain mix.
 
 ```{r}
 # Simulate item domains
@@ -206,7 +246,7 @@ length(sel_items); head(sel_items)
 
 ## Interpreting predictions (face validity checks)
 
-It helps to visualize how predictions separate 1–4 “true” ratings.
+It helps to visualize how predictions separate 1--4 "true" ratings.
 
 ```{r}
 # Sample co-observed cells for plotting
@@ -226,36 +266,36 @@ ggplot(df_plot, aes(x = pred, fill = true)) +
 
 ```
 
-You should see higher predictions shifting toward higher observed ratings—i.e., monotonic separation.
+You should see higher predictions shifting toward higher observed ratings---i.e., monotonic separation.
 
 ## Cold-start and drift (practical considerations)
 
-- Item cold-start: New items with no ratings can borrow information from content features (e.g., tags, blueprint domain) via hybrid models, or by seeding with pilot ratings.
+-   Item cold-start: New items with no ratings can borrow information from content features (e.g., tags, blueprint domain) via hybrid models, or by seeding with pilot ratings.
 
-- User cold-start: For brand-new participants, use population priors, brief “warm-up” questions, or side info (practice profile) to initialize.
+-   User cold-start: For brand-new participants, use population priors, brief "warm-up" questions, or side info (practice profile) to initialize.
 
-- Concept drift: Re-train on a cadence (e.g., quarterly) and monitor prediction error over time.
+-   Concept drift: Re-train on a cadence (e.g., quarterly) and monitor prediction error over time.
 
 ## Fairness & psychometric guardrails (assessment context)
 
-- Even with good accuracy, governance matters. In assessments:
+Even with good accuracy, governance matters. In assessments:
 
-- Blueprint adherence: Item selection must guarantee domain coverage.
+-   Blueprint adherence: Item selection must guarantee domain coverage.
 
-- Score comparability: If scores are used, maintain comparability via equating/linking; personalization must not change score meaning.
+-   Score comparability: If scores are used, maintain comparability via equating/linking; personalization must not change score meaning.
 
-- Fairness checks: Routinely evaluate subgroup RMSE/MAE and calibration (e.g., by practice setting, geography, training cohort). Investigate/mitigate gaps.
+-   Fairness checks: Routinely evaluate subgroup RMSE/MAE and calibration (e.g., by practice setting, geography, training cohort). Investigate/mitigate gaps.
 
-- Exposure & security: Cap exposures, control for leakage, and rotate forms/items appropriately.
+-   Exposure & security: Cap exposures, control for leakage, and rotate forms/items appropriately.
 
-- Transparency: Document the algorithm, inputs, re-training cadence, and monitoring plan.
+-   Transparency: Document the algorithm, inputs, re-training cadence, and monitoring plan.
 
-## What “good enough” looks like
+## What "good enough" looks like
 
 No model is perfect. You want:
 
-- Consistent lift over baseline (e.g., SVD vs. POPULAR) on RMSE/MAE.
+-   Consistent lift over baseline (e.g., SVD vs. POPULAR) on RMSE/MAE.
 
-- Face-valid separation of predictions by observed rating.
+-   Face-valid separation of predictions by observed rating.
 
-- Operational impact: higher average relevance after deployment without violating blueprint/fairness constraints.
+-   Operational impact: higher average relevance after deployment without violating blueprint/fairness constraints.
